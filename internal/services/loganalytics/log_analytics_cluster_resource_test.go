@@ -37,6 +37,26 @@ func TestAccLogAnalyticsCluster_basic(t *testing.T) {
 	})
 }
 
+func TestAccLogAnalyticsCluster_complete(t *testing.T) {
+	data := acceptance.BuildTestData(t, "azurerm_log_analytics_cluster", "test")
+	r := LogAnalyticsClusterResource{}
+
+	//if os.Getenv("ARM_RUN_TEST_LOG_ANALYTICS_CLUSTERS") == "" {
+	//	t.Skip("Skipping as ARM_RUN_TEST_LOG_ANALYTICS_CLUSTERS is not specified")
+	//	return
+	//}
+
+	data.ResourceTest(t, r, []acceptance.TestStep{
+		{
+			Config: r.complete(data),
+			Check: acceptance.ComposeTestCheckFunc(
+				check.That(data.ResourceName).ExistsInAzure(r),
+			),
+		},
+		data.ImportStep(),
+	})
+}
+
 func TestAccLogAnalyticsCluster_resize(t *testing.T) {
 	data := acceptance.BuildTestData(t, "azurerm_log_analytics_cluster", "test")
 	r := LogAnalyticsClusterResource{}
@@ -122,6 +142,25 @@ resource "azurerm_log_analytics_cluster" "test" {
 
   identity {
     type = "SystemAssigned"
+  }
+}
+`, r.template(data), data.RandomInteger)
+}
+
+func (r LogAnalyticsClusterResource) complete(data acceptance.TestData) string {
+	return fmt.Sprintf(`
+%s
+
+resource "azurerm_log_analytics_cluster" "test" {
+  name                = "acctest-LA-%d"
+  resource_group_name = azurerm_resource_group.test.name
+  location            = azurerm_resource_group.test.location
+
+  identity {
+    type = "SystemAssigned"
+  }
+  tags = {
+    ENV = "Test"
   }
 }
 `, r.template(data), data.RandomInteger)
