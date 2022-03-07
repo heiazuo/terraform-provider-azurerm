@@ -28,6 +28,7 @@ func TestAccIotHub_basic(t *testing.T) {
 		},
 		data.ImportStep(),
 	})
+	//test
 }
 
 func TestAccIotHub_ipFilterRules(t *testing.T) {
