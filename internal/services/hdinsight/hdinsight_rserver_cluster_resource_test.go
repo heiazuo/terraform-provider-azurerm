@@ -324,6 +324,8 @@ resource "azurerm_hdinsight_rserver_cluster" "import" {
         }
       }
 
+
+
       dynamic "worker_node" {
         for_each = lookup(roles.value, "worker_node", [])
         content {
