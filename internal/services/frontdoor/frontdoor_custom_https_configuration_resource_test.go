@@ -105,6 +105,21 @@ func TestAccFrontDoorCustomHttpsConfiguration_EnabledKeyVaultMissingAttributes(t
 	})
 }
 
+func TestAccFrontDoorCustomHttpsConfiguration_CustomHttpsConfiguration(t *testing.T) {
+	data := acceptance.BuildTestData(t, "azurerm_frontdoor_custom_https_configuration", "test")
+	r := FrontDoorCustomHttpsConfigurationResource{}
+	data.ResourceTest(t, r, []acceptance.TestStep{
+		{
+			Config: r.CustomHttpsConfiguration(data),
+			Check: acceptance.ComposeTestCheckFunc(
+				check.That(data.ResourceName).ExistsInAzure(r),
+				check.That(data.ResourceName).Key("custom_https_provisioning_enabled").HasValue("true"),
+				check.That(data.ResourceName).Key("custom_https_configuration.0.certificate_source").HasValue("AzureKeyVault"),
+			),
+		},
+	})
+}
+
 func (FrontDoorCustomHttpsConfigurationResource) Exists(ctx context.Context, clients *clients.Client, state *pluginsdk.InstanceState) (*bool, error) {
 	id, err := parse.CustomHttpsConfigurationIDInsensitively(state.ID)
 	if err != nil {
@@ -237,6 +252,28 @@ resource "azurerm_frontdoor_custom_https_configuration" "test" {
     certificate_source                         = "AzureKeyVault"
     azure_key_vault_certificate_secret_name    = "accTest"
     azure_key_vault_certificate_secret_version = "accTest"
+  }
+}
+`, r.template(data))
+}
+
+func (r FrontDoorCustomHttpsConfigurationResource) CustomHttpsConfiguration(data acceptance.TestData) string {
+	return fmt.Sprintf(`
+%s
+
+data "azurerm_key_vault" "vault" {
+  name                = "example-vault"
+  resource_group_name = "example-vault-rg"
+}
+
+resource "azurerm_frontdoor_custom_https_configuration" "test" {
+  frontend_endpoint_id              = azurerm_frontdoor.test.frontend_endpoints[local.endpoint_name]
+  custom_https_provisioning_enabled = true
+
+  custom_https_configuration {
+    certificate_source                      = "AzureKeyVault"
+    azure_key_vault_certificate_secret_name = "examplefd1"
+    azure_key_vault_certificate_vault_id    = data.azurerm_key_vault.vault.id
   }
 }
 `, r.template(data))
