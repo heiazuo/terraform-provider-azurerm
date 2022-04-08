@@ -105,12 +105,12 @@ func TestAccFrontDoorCustomHttpsConfiguration_EnabledKeyVaultMissingAttributes(t
 	})
 }
 
-func TestAccFrontDoorCustomHttpsConfiguration_CustomHttpsConfiguration(t *testing.T) {
+func TestAccFrontDoorCustomHttpsConfiguration_Certificate(t *testing.T) {
 	data := acceptance.BuildTestData(t, "azurerm_frontdoor_custom_https_configuration", "test")
 	r := FrontDoorCustomHttpsConfigurationResource{}
 	data.ResourceTest(t, r, []acceptance.TestStep{
 		{
-			Config: r.CustomHttpsConfiguration(data),
+			Config: r.Certificate(data),
 			Check: acceptance.ComposeTestCheckFunc(
 				check.That(data.ResourceName).ExistsInAzure(r),
 				check.That(data.ResourceName).Key("custom_https_provisioning_enabled").HasValue("true"),
@@ -257,14 +257,9 @@ resource "azurerm_frontdoor_custom_https_configuration" "test" {
 `, r.template(data))
 }
 
-func (r FrontDoorCustomHttpsConfigurationResource) CustomHttpsConfiguration(data acceptance.TestData) string {
+func (r FrontDoorCustomHttpsConfigurationResource) Certificate(data acceptance.TestData) string {
 	return fmt.Sprintf(`
 %s
-
-data "azurerm_key_vault" "vault" {
-  name                = "example-vault"
-  resource_group_name = "example-vault-rg"
-}
 
 resource "azurerm_frontdoor_custom_https_configuration" "test" {
   frontend_endpoint_id              = azurerm_frontdoor.test.frontend_endpoints[local.endpoint_name]
@@ -273,7 +268,7 @@ resource "azurerm_frontdoor_custom_https_configuration" "test" {
   custom_https_configuration {
     certificate_source                      = "AzureKeyVault"
     azure_key_vault_certificate_secret_name = "examplefd1"
-    azure_key_vault_certificate_vault_id    = data.azurerm_key_vault.vault.id
+    azure_key_vault_certificate_vault_id    = azurerm_frontdoor.test.id
   }
 }
 `, r.template(data))
