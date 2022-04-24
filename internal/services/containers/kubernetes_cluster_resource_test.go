@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-provider-azurerm/internal/acceptance"
@@ -32,37 +31,6 @@ func TestAccKubernetesCluster_hostEncryption(t *testing.T) {
 			Check: acceptance.ComposeTestCheckFunc(
 				check.That(data.ResourceName).ExistsInAzure(r),
 				check.That(data.ResourceName).Key("default_node_pool.0.enable_host_encryption").HasValue("true"),
-			),
-		},
-	})
-}
-
-func TestAccKubernetesCluster_defaultNodePool(t *testing.T) {
-	data := acceptance.BuildTestData(t, "azurerm_kubernetes_cluster", "test")
-	r := KubernetesClusterResource{}
-	labels1 := map[string]string{"key": "value"}
-	labels2 := map[string]string{"key2": "value2"}
-	labels3 := map[string]string{}
-
-	data.ResourceTest(t, r, []acceptance.TestStep{
-		{
-			Config: r.defaultNodePool(data, labels1),
-			Check: acceptance.ComposeTestCheckFunc(
-				check.That(data.ResourceName).Key("default_node_pool.0.node_labels.%").HasValue("1"),
-				check.That(data.ResourceName).Key("default_node_pool.0.node_labels.key").HasValue("value"),
-			),
-		},
-		{
-			Config: r.defaultNodePool(data, labels2),
-			Check: acceptance.ComposeTestCheckFunc(
-				check.That(data.ResourceName).Key("default_node_pool.0.node_labels.%").HasValue("1"),
-				check.That(data.ResourceName).Key("default_node_pool.0.node_labels.key2").HasValue("value2"),
-			),
-		},
-		{
-			Config: r.defaultNodePool(data, labels3),
-			Check: acceptance.ComposeTestCheckFunc(
-				check.That(data.ResourceName).Key("default_node_pool.0.node_labels.%").HasValue("0"),
 			),
 		},
 	})
@@ -146,46 +114,6 @@ resource "azurerm_kubernetes_cluster" "test" {
   }
 }
   `, data.RandomInteger, data.Locations.Primary, data.RandomInteger, data.RandomInteger, controlPlaneVersion)
-}
-
-func (KubernetesClusterResource) defaultNodePool(data acceptance.TestData, labels map[string]string) string {
-	labelsSlice := make([]string, 0, len(labels))
-	for k, v := range labels {
-		labelsSlice = append(labelsSlice, fmt.Sprintf("    \"%s\" = \"%s\"", k, v))
-	}
-	labelsStr := strings.Join(labelsSlice, "\n")
-	return fmt.Sprintf(`
-provider "azurerm" {
-  features {}
-}
-
-resource "azurerm_resource_group" "test" {
-  name     = "acctestRG-aks-%[1]d"
-  location = "%[2]s"
-}
-
-resource "azurerm_kubernetes_cluster" "test" {
-  name                = "acctestaks%[1]d"
-  location            = azurerm_resource_group.test.location
-  resource_group_name = azurerm_resource_group.test.name
-  dns_prefix          = "acctestaks%[1]d"
-  kubernetes_version  = "1.22.4"
-
-  default_node_pool {
-    name                   = "default"
-    node_count             = 1
-    vm_size                = "Standard_DS2_v2"
-    enable_host_encryption = true
-    node_labels = {
-%[3]s
-    }
-  }
-
-  identity {
-    type = "SystemAssigned"
-  }
-}
-`, data.RandomInteger, data.Locations.Primary, labelsStr)
 }
 
 func (r KubernetesClusterResource) upgradeSettingsConfig(data acceptance.TestData, maxSurge string) string {

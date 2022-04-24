@@ -145,32 +145,29 @@ func TestAccKubernetesCluster_linuxProfile(t *testing.T) {
 func TestAccKubernetesCluster_nodeLabels(t *testing.T) {
 	data := acceptance.BuildTestData(t, "azurerm_kubernetes_cluster", "test")
 	r := KubernetesClusterResource{}
-	labels1 := map[string]string{"key": "value"}
-	labels2 := map[string]string{"key2": "value2"}
-	labels3 := map[string]string{}
 
 	data.ResourceTest(t, r, []acceptance.TestStep{
 		{
-			Config: r.nodeLabelsConfig(data, labels1),
+			Config: r.nodeLabelsConfig(data, map[string]string{"key": "value"}),
 			Check: acceptance.ComposeTestCheckFunc(
 				check.That(data.ResourceName).ExistsInAzure(r),
-				check.That(data.ResourceName).Key("default_node_pool.0.node_labels.key").HasValue("value"),
 			),
 		},
+		data.ImportStep(),
 		{
-			Config: r.nodeLabelsConfig(data, labels2),
+			Config: r.nodeLabelsConfig(data, map[string]string{"key2": "value2"}),
 			Check: acceptance.ComposeTestCheckFunc(
 				check.That(data.ResourceName).ExistsInAzure(r),
-				check.That(data.ResourceName).Key("default_node_pool.0.node_labels.key2").HasValue("value2"),
 			),
 		},
+		data.ImportStep(),
 		{
-			Config: r.nodeLabelsConfig(data, labels3),
+			Config: r.nodeLabelsConfig(data, map[string]string{}),
 			Check: acceptance.ComposeTestCheckFunc(
 				check.That(data.ResourceName).ExistsInAzure(r),
-				acceptance.TestCheckNoResourceAttr(data.ResourceName, "default_node_pool.0.node_labels"),
 			),
 		},
+		data.ImportStep(),
 	})
 }
 
@@ -1104,7 +1101,7 @@ resource "azurerm_kubernetes_cluster" "test" {
 func (KubernetesClusterResource) nodeLabelsConfig(data acceptance.TestData, labels map[string]string) string {
 	labelsSlice := make([]string, 0, len(labels))
 	for k, v := range labels {
-		labelsSlice = append(labelsSlice, fmt.Sprintf("      \"%s\" = \"%s\"", k, v))
+		labelsSlice = append(labelsSlice, fmt.Sprintf(`    "%s" = "%s"`, k, v))
 	}
 	labelsStr := strings.Join(labelsSlice, "\n")
 	return fmt.Sprintf(`
