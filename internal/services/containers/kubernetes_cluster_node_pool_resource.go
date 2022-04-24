@@ -653,10 +653,7 @@ func resourceKubernetesClusterNodePoolUpdate(d *pluginsdk.ResourceData, meta int
 	}
 
 	if d.HasChange("node_labels") {
-		nodeLabelsRaw := d.Get("node_labels").(map[string]interface{})
-		if nodeLabels := utils.ExpandMapStringPtrString(nodeLabelsRaw); len(nodeLabels) > 0 {
-			props.NodeLabels = nodeLabels
-		}
+		props.NodeLabels = utils.ExpandMapStringPtrString(d.Get("node_labels").(map[string]interface{}))
 	}
 
 	// validate the auto-scale fields are both set/unset to prevent a continual diff

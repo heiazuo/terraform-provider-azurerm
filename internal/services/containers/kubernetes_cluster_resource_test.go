@@ -177,7 +177,7 @@ resource "azurerm_kubernetes_cluster" "test" {
     vm_size                = "Standard_DS2_v2"
     enable_host_encryption = true
     node_labels = {
-		%[3]s
+%[3]s
     }
   }
 
