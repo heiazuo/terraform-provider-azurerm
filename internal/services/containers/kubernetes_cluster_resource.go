@@ -323,6 +323,22 @@ func resourceKubernetesCluster() *pluginsdk.Resource {
 				Optional: true,
 			},
 
+			"ingress_profile": {
+				Type:     pluginsdk.TypeList,
+				Optional: true,
+				MaxItems: 1,
+				Elem: &pluginsdk.Resource{
+					Schema: map[string]*pluginsdk.Schema{
+						"dns_zone_id": {
+							Type:         pluginsdk.TypeString,
+							Optional:     true,
+							ForceNew:     true,
+							ValidateFunc: validation.StringIsNotEmpty,
+						},
+					},
+				},
+			},
+
 			"maintenance_window": {
 				Type:     pluginsdk.TypeList,
 				Optional: true,
@@ -1149,6 +1165,7 @@ func resourceKubernetesClusterCreate(d *pluginsdk.ResourceData, meta interface{}
 	managedClusterIdentityRaw := d.Get("identity").([]interface{})
 	kubernetesClusterIdentityRaw := d.Get("kubelet_identity").([]interface{})
 	servicePrincipalProfileRaw := d.Get("service_principal").([]interface{})
+	ingressProfileRaw := d.Get("ingress_profile").([]interface{})
 
 	if len(managedClusterIdentityRaw) == 0 && len(servicePrincipalProfileRaw) == 0 {
 		return fmt.Errorf("either an `identity` or `service_principal` block must be specified for cluster authentication")
@@ -1176,6 +1193,17 @@ func resourceKubernetesClusterCreate(d *pluginsdk.ResourceData, meta interface{}
 			Secret:   utils.String(servicePrincipalProfileVal["client_secret"].(string)),
 		}
 		servicePrincipalSet = true
+	}
+
+	if len(ingressProfileRaw) > 0 {
+		ingressProfileVal := ingressProfileRaw[0].(map[string]interface{})
+		parameters.ManagedClusterProperties.IngressProfile = &containerservice.ManagedClusterIngressProfile{}
+		if v := ingressProfileVal["dns_zone_id"].(string); v != "" {
+			parameters.ManagedClusterProperties.IngressProfile.WebAppRouting = &containerservice.ManagedClusterIngressProfileWebAppRouting{
+				Enabled:           utils.Bool(true),
+				DNSZoneResourceID: utils.String(v),
+			}
+		}
 	}
 
 	if v, ok := d.GetOk("private_dns_zone_id"); ok {
@@ -1508,6 +1536,12 @@ func resourceKubernetesClusterUpdate(d *pluginsdk.ResourceData, meta interface{}
 		existing.Tags = tags.Expand(t)
 	}
 
+	if d.HasChange("dns_zone_id") {
+		updateCluster = true
+		existing.ManagedClusterProperties.IngressProfile.WebAppRouting.DNSZoneResourceID = utils.String(d.Get("dns_zone_id").(string))
+		existing.ManagedClusterProperties.IngressProfile.WebAppRouting.Enabled = utils.Bool(true)
+	}
+
 	if d.HasChange("windows_profile") {
 		updateCluster = true
 		windowsProfileRaw := d.Get("windows_profile").([]interface{})
@@ -1799,6 +1833,11 @@ func resourceKubernetesClusterRead(d *pluginsdk.ResourceData, meta interface{}) 
 			return fmt.Errorf("setting `linux_profile`: %+v", err)
 		}
 
+		ingressProfile := flattenKubernetesClusterIngressProfile(props.IngressProfile)
+		if err := d.Set("ingress_profile", ingressProfile); err != nil {
+			return fmt.Errorf("setting `ingress_profile`: %+v", err)
+		}
+
 		networkProfile := flattenKubernetesClusterNetworkProfile(props.NetworkProfile)
 		if err := d.Set("network_profile", networkProfile); err != nil {
 			return fmt.Errorf("setting `network_profile`: %+v", err)
@@ -1889,6 +1928,23 @@ func resourceKubernetesClusterRead(d *pluginsdk.ResourceData, meta interface{}) 
 	}
 
 	return tags.FlattenAndSet(d, resp.Tags)
+}
+
+func flattenKubernetesClusterIngressProfile(profile *containerservice.ManagedClusterIngressProfile) interface{} {
+	if profile == nil {
+		return []interface{}{}
+	}
+
+	dnsZoneId := ""
+	if v := profile.WebAppRouting.DNSZoneResourceID; v != nil {
+		dnsZoneId = *v
+	}
+
+	return []interface{}{
+		map[string]interface{}{
+			"dns_zone_id": dnsZoneId,
+		},
+	}
 }
 
 func resourceKubernetesClusterDelete(d *pluginsdk.ResourceData, meta interface{}) error {

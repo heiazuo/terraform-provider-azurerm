@@ -129,6 +129,8 @@ In addition, one of either `identity` or `service_principal` blocks must be spec
 
 -> **Note:** If `local_account_disabled` is set to `true`, it is required to enable Kubernetes RBAC and AKS-managed Azure AD integration. See [the documentation](https://docs.microsoft.com/en-us/azure/aks/managed-aad#azure-ad-authentication-overview) for more information.
 
+* `ingress_profile` - (Optional) A `ingress_profile` block as defined below.
+
 * `maintenance_window` - (Optional) A `maintenance_window` block as defined below.
 
 * `microsoft_defender` - (Optional) A `microsoft_defender` block as defined below.
@@ -459,6 +461,12 @@ A `linux_profile` block supports the following:
 * `admin_username` - (Required) The Admin Username for the Cluster. Changing this forces a new resource to be created.
 
 * `ssh_key` - (Required) An `ssh_key` block. Only one is currently allowed. Changing this forces a new resource to be created.
+
+---
+
+A `ingress_profile` block supports the following:
+
+* `dns_zone_id` - (Optional) Resource ID of the DNS Zone to be associated with the web app. Used only when Web App Routing is enabled. Changing this forces a new resource to be created.
 
 ---
 
