@@ -22,6 +22,7 @@ import (
 	"github.com/hashicorp/terraform-provider-azurerm/internal/services/containers/migration"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/services/containers/parse"
 	containerValidate "github.com/hashicorp/terraform-provider-azurerm/internal/services/containers/validate"
+	validate2 "github.com/hashicorp/terraform-provider-azurerm/internal/services/dns/validate"
 	logAnalyticsValidate "github.com/hashicorp/terraform-provider-azurerm/internal/services/loganalytics/validate"
 	msiparse "github.com/hashicorp/terraform-provider-azurerm/internal/services/msi/parse"
 	msivalidate "github.com/hashicorp/terraform-provider-azurerm/internal/services/msi/validate"
@@ -326,6 +327,7 @@ func resourceKubernetesCluster() *pluginsdk.Resource {
 			"ingress_profile": {
 				Type:     pluginsdk.TypeList,
 				Optional: true,
+				ForceNew: true,
 				MaxItems: 1,
 				Elem: &pluginsdk.Resource{
 					Schema: map[string]*pluginsdk.Schema{
@@ -333,7 +335,7 @@ func resourceKubernetesCluster() *pluginsdk.Resource {
 							Type:         pluginsdk.TypeString,
 							Optional:     true,
 							ForceNew:     true,
-							ValidateFunc: validation.StringIsNotEmpty,
+							ValidateFunc: validate2.DnsZoneID,
 						},
 					},
 				},
@@ -1197,11 +1199,12 @@ func resourceKubernetesClusterCreate(d *pluginsdk.ResourceData, meta interface{}
 
 	if len(ingressProfileRaw) > 0 {
 		ingressProfileVal := ingressProfileRaw[0].(map[string]interface{})
-		parameters.ManagedClusterProperties.IngressProfile = &containerservice.ManagedClusterIngressProfile{}
 		if v := ingressProfileVal["dns_zone_id"].(string); v != "" {
-			parameters.ManagedClusterProperties.IngressProfile.WebAppRouting = &containerservice.ManagedClusterIngressProfileWebAppRouting{
-				Enabled:           utils.Bool(true),
-				DNSZoneResourceID: utils.String(v),
+			parameters.ManagedClusterProperties.IngressProfile = &containerservice.ManagedClusterIngressProfile{
+				WebAppRouting: &containerservice.ManagedClusterIngressProfileWebAppRouting{
+					Enabled:           utils.Bool(true),
+					DNSZoneResourceID: utils.String(v),
+				},
 			}
 		}
 	}
@@ -1534,12 +1537,6 @@ func resourceKubernetesClusterUpdate(d *pluginsdk.ResourceData, meta interface{}
 		updateCluster = true
 		t := d.Get("tags").(map[string]interface{})
 		existing.Tags = tags.Expand(t)
-	}
-
-	if d.HasChange("dns_zone_id") {
-		updateCluster = true
-		existing.ManagedClusterProperties.IngressProfile.WebAppRouting.DNSZoneResourceID = utils.String(d.Get("dns_zone_id").(string))
-		existing.ManagedClusterProperties.IngressProfile.WebAppRouting.Enabled = utils.Bool(true)
 	}
 
 	if d.HasChange("windows_profile") {
@@ -1931,7 +1928,7 @@ func resourceKubernetesClusterRead(d *pluginsdk.ResourceData, meta interface{}) 
 }
 
 func flattenKubernetesClusterIngressProfile(profile *containerservice.ManagedClusterIngressProfile) interface{} {
-	if profile == nil {
+	if profile == nil || profile.WebAppRouting == nil {
 		return []interface{}{}
 	}
 
