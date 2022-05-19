@@ -279,7 +279,8 @@ func resourceKubernetesClusterNodePool() *pluginsdk.Resource {
 			"snapshot_id": {
 				Type:         pluginsdk.TypeString,
 				Optional:     true,
-				ValidateFunc: validation.StringIsNotEmpty,
+				ForceNew:     true,
+				ValidateFunc: containerValidate.NodePoolSnapshotID,
 			},
 
 			"ultra_ssd_enabled": {
@@ -644,10 +645,6 @@ func resourceKubernetesClusterNodePoolUpdate(d *pluginsdk.ResourceData, meta int
 
 	if d.HasChange("scale_down_mode") {
 		props.ScaleDownMode = containerservice.ScaleDownMode(d.Get("scale_down_mode").(string))
-	}
-
-	if d.HasChange("snapshot_id") {
-		props.CreationData.SourceResourceID = utils.String(d.Get("snapshot_id").(string))
 	}
 
 	if d.HasChange("workload_runtime") {

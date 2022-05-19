@@ -806,7 +806,8 @@ func resourceKubernetesCluster() *pluginsdk.Resource {
 			"snapshot_id": {
 				Type:         pluginsdk.TypeString,
 				Optional:     true,
-				ValidateFunc: computeValidate.SnapshotID,
+				ForceNew:     true,
+				ValidateFunc: containerValidate.ClusterSnapshotID,
 			},
 
 			"tags": tags.Schema(),
@@ -1551,13 +1552,6 @@ func resourceKubernetesClusterUpdate(d *pluginsdk.ResourceData, meta interface{}
 			skuTier = containerservice.ManagedClusterSKUTier(v)
 		}
 		existing.Sku.Tier = skuTier
-	}
-
-	if d.HasChange("snapshot_id") {
-		updateCluster = true
-		if v := d.Get("snapshot_id"); v != "" {
-			existing.ManagedClusterProperties.CreationData.SourceResourceID = utils.String(v.(string))
-		}
 	}
 
 	if d.HasChange("automatic_channel_upgrade") {

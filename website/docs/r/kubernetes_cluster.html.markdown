@@ -215,7 +215,7 @@ resource "azurerm_kubernetes_cluster" "example" {
 
 * `sku_tier` - (Optional) The SKU Tier that should be used for this Kubernetes Cluster. Possible values are `Free` and `Paid` (which includes the Uptime SLA). Defaults to `Free`.
 
-* `snapshot_id` - (Optional) This is the ARM ID of the source object to be used to create the target object.
+* `snapshot_id` - (Optional) This is the ARM ID of the source object to be used to create the target object. Changing this forces a new resource to be created.
 
 * `tags` - (Optional) A mapping of tags to assign to the resource.
 

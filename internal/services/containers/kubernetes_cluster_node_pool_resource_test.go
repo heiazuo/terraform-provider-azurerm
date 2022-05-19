@@ -1604,9 +1604,6 @@ resource "azurerm_kubernetes_cluster_node_pool" "test2" {
   node_count            = 1
   snapshot_id           = azurerm_kubernetes_cluster_node_pool_snapshot.test.id
 }
-
-
-
 `, r.templateConfig(data), data.RandomInteger)
 }
 
