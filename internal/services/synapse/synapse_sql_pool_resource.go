@@ -397,9 +397,11 @@ func synapseSqlPoolScaleStateRefreshFunc(ctx context.Context, client *synapse.SQ
 // backend service restore and backup only accept id format of sql database
 // so if the id is sqlPool, we need to construct the corresponding sql database id
 func constructSourceDatabaseId(id string) string {
-	sqlPoolId, err := parse.SqlPoolID(id)
-	if err != nil {
-		return id
+	if recoverableDatabaseId, err := parse.RecoverableDatabaseID(id); err == nil {
+		return parse.NewRecoverableDatabaseID(recoverableDatabaseId.SubscriptionId, recoverableDatabaseId.ResourceGroup, recoverableDatabaseId.WorkspaceName, recoverableDatabaseId.Name).ID()
 	}
-	return mssqlParse.NewDatabaseID(sqlPoolId.SubscriptionId, sqlPoolId.ResourceGroup, sqlPoolId.WorkspaceName, sqlPoolId.Name).ID()
+	if mssqlRecoverableDatabaseId, err := mssqlParse.RecoverableDatabaseID(id); err == nil {
+		return mssqlParse.NewRecoverableDatabaseID(mssqlRecoverableDatabaseId.SubscriptionId, mssqlRecoverableDatabaseId.ResourceGroup, mssqlRecoverableDatabaseId.ServerName, mssqlRecoverableDatabaseId.Name).ID()
+	}
+	return id
 }
