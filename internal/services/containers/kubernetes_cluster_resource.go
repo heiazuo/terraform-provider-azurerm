@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Azure/azure-sdk-for-go/services/preview/containerservice/mgmt/2022-01-02-preview/containerservice"
+	"github.com/Azure/azure-sdk-for-go/services/preview/containerservice/mgmt/2022-03-02-preview/containerservice"
 	"github.com/Azure/go-autorest/autorest/date"
 	"github.com/hashicorp/go-azure-helpers/resourcemanager/commonschema"
 	"github.com/hashicorp/go-azure-helpers/resourcemanager/identity"
@@ -22,6 +22,7 @@ import (
 	"github.com/hashicorp/terraform-provider-azurerm/internal/services/containers/migration"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/services/containers/parse"
 	containerValidate "github.com/hashicorp/terraform-provider-azurerm/internal/services/containers/validate"
+	dnsValidate "github.com/hashicorp/terraform-provider-azurerm/internal/services/dns/validate"
 	logAnalyticsValidate "github.com/hashicorp/terraform-provider-azurerm/internal/services/loganalytics/validate"
 	msiparse "github.com/hashicorp/terraform-provider-azurerm/internal/services/msi/parse"
 	msivalidate "github.com/hashicorp/terraform-provider-azurerm/internal/services/msi/validate"
@@ -321,6 +322,23 @@ func resourceKubernetesCluster() *pluginsdk.Resource {
 			"local_account_disabled": {
 				Type:     pluginsdk.TypeBool,
 				Optional: true,
+			},
+
+			"ingress_profile": {
+				Type:     pluginsdk.TypeList,
+				Optional: true,
+				ForceNew: true,
+				MaxItems: 1,
+				Elem: &pluginsdk.Resource{
+					Schema: map[string]*pluginsdk.Schema{
+						"dns_zone_id": {
+							Type:         pluginsdk.TypeString,
+							Optional:     true,
+							ForceNew:     true,
+							ValidateFunc: dnsValidate.DnsZoneID,
+						},
+					},
+				},
 			},
 
 			"maintenance_window": {
@@ -1149,6 +1167,7 @@ func resourceKubernetesClusterCreate(d *pluginsdk.ResourceData, meta interface{}
 	managedClusterIdentityRaw := d.Get("identity").([]interface{})
 	kubernetesClusterIdentityRaw := d.Get("kubelet_identity").([]interface{})
 	servicePrincipalProfileRaw := d.Get("service_principal").([]interface{})
+	ingressProfileRaw := d.Get("ingress_profile").([]interface{})
 
 	if len(managedClusterIdentityRaw) == 0 && len(servicePrincipalProfileRaw) == 0 {
 		return fmt.Errorf("either an `identity` or `service_principal` block must be specified for cluster authentication")
@@ -1176,6 +1195,18 @@ func resourceKubernetesClusterCreate(d *pluginsdk.ResourceData, meta interface{}
 			Secret:   utils.String(servicePrincipalProfileVal["client_secret"].(string)),
 		}
 		servicePrincipalSet = true
+	}
+
+	if len(ingressProfileRaw) > 0 {
+		ingressProfileVal := ingressProfileRaw[0].(map[string]interface{})
+		if v := ingressProfileVal["dns_zone_id"].(string); v != "" {
+			parameters.ManagedClusterProperties.IngressProfile = &containerservice.ManagedClusterIngressProfile{
+				WebAppRouting: &containerservice.ManagedClusterIngressProfileWebAppRouting{
+					Enabled:           utils.Bool(true),
+					DNSZoneResourceID: utils.String(v),
+				},
+			}
+		}
 	}
 
 	if v, ok := d.GetOk("private_dns_zone_id"); ok {
@@ -1802,6 +1833,11 @@ func resourceKubernetesClusterRead(d *pluginsdk.ResourceData, meta interface{}) 
 			return fmt.Errorf("setting `linux_profile`: %+v", err)
 		}
 
+		ingressProfile := flattenKubernetesClusterIngressProfile(props.IngressProfile)
+		if err := d.Set("ingress_profile", ingressProfile); err != nil {
+			return fmt.Errorf("setting `ingress_profile`: %+v", err)
+		}
+
 		networkProfile := flattenKubernetesClusterNetworkProfile(props.NetworkProfile)
 		if err := d.Set("network_profile", networkProfile); err != nil {
 			return fmt.Errorf("setting `network_profile`: %+v", err)
@@ -1894,6 +1930,23 @@ func resourceKubernetesClusterRead(d *pluginsdk.ResourceData, meta interface{}) 
 	return tags.FlattenAndSet(d, resp.Tags)
 }
 
+func flattenKubernetesClusterIngressProfile(profile *containerservice.ManagedClusterIngressProfile) interface{} {
+	if profile == nil || profile.WebAppRouting == nil {
+		return []interface{}{}
+	}
+
+	dnsZoneId := ""
+	if v := profile.WebAppRouting.DNSZoneResourceID; v != nil {
+		dnsZoneId = *v
+	}
+
+	return []interface{}{
+		map[string]interface{}{
+			"dns_zone_id": dnsZoneId,
+		},
+	}
+}
+
 func resourceKubernetesClusterDelete(d *pluginsdk.ResourceData, meta interface{}) error {
 	client := meta.(*clients.Client).Containers.KubernetesClustersClient
 	ctx, cancel := timeouts.ForDelete(meta.(*clients.Client).StopContext, d)
@@ -1911,7 +1964,7 @@ func resourceKubernetesClusterDelete(d *pluginsdk.ResourceData, meta interface{}
 		}
 	}
 
-	future, err := client.Delete(ctx, id.ResourceGroup, id.ManagedClusterName)
+	future, err := client.Delete(ctx, id.ResourceGroup, id.ManagedClusterName, utils.Bool(true))
 	if err != nil {
 		return fmt.Errorf("deleting %s: %+v", *id, err)
 	}
