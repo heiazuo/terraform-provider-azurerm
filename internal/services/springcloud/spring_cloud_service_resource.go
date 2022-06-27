@@ -80,6 +80,11 @@ func resourceSpringCloudService() *pluginsdk.Resource {
 				}, false),
 			},
 
+			"log_stream_public_endpoint_enabled": {
+				Type:     pluginsdk.TypeBool,
+				Optional: true,
+			},
+
 			"network": {
 				Type:     pluginsdk.TypeList,
 				Optional: true,
@@ -116,6 +121,11 @@ func resourceSpringCloudService() *pluginsdk.Resource {
 							Optional: true,
 							Computed: true,
 							ForceNew: true,
+						},
+
+						"read_timeout_seconds": {
+							Type:     pluginsdk.TypeInt,
+							Optional: true,
 						},
 
 						"service_runtime_network_resource_group": {
@@ -328,6 +338,9 @@ func resourceSpringCloudServiceCreate(d *pluginsdk.ResourceData, meta interface{
 		Properties: &appplatform.ClusterResourceProperties{
 			NetworkProfile: expandSpringCloudNetwork(d.Get("network").([]interface{})),
 			ZoneRedundant:  utils.Bool(d.Get("zone_redundant").(bool)),
+			VnetAddons: &appplatform.ServiceVNetAddons{
+				LogStreamPublicEndpoint: utils.Bool(d.Get("log_stream_public_endpoint_enabled").(bool)),
+			},
 		},
 		Sku: &appplatform.Sku{
 			Name: utils.String(d.Get("sku_name").(string)),
@@ -596,6 +609,12 @@ func resourceSpringCloudServiceRead(d *pluginsdk.ResourceData, meta interface{})
 			return fmt.Errorf("setting `required_network_traffic_rules`: %+v", err)
 		}
 
+		if vnetAddons := props.VnetAddons; vnetAddons != nil {
+			if err := d.Set("log_stream_public_endpoint_enabled", utils.Bool(*vnetAddons.LogStreamPublicEndpoint)); err != nil {
+				return fmt.Errorf("setting `log_stream_public_endpoint_enabled`: %+v", err)
+			}
+		}
+
 		d.Set("zone_redundant", props.ZoneRedundant)
 	}
 
@@ -667,6 +686,9 @@ func expandSpringCloudNetwork(input []interface{}) *appplatform.NetworkProfile {
 		ServiceRuntimeSubnetID: utils.String(v["service_runtime_subnet_id"].(string)),
 		AppSubnetID:            utils.String(v["app_subnet_id"].(string)),
 		ServiceCidr:            utils.String(strings.Join(*cidrRanges, ",")),
+		IngressConfig: &appplatform.IngressConfig{
+			ReadTimeoutInSeconds: utils.Int32(int32(v["read_timeout_seconds"].(int))),
+		},
 	}
 	if serviceRuntimeNetworkResourceGroup := v["service_runtime_network_resource_group"].(string); serviceRuntimeNetworkResourceGroup != "" {
 		network.ServiceRuntimeNetworkResourceGroup = utils.String(serviceRuntimeNetworkResourceGroup)
@@ -1035,6 +1057,7 @@ func flattenSpringCloudNetwork(input *appplatform.NetworkProfile) []interface{} 
 	}
 
 	var serviceRuntimeSubnetID, appSubnetID, serviceRuntimeNetworkResourceGroup, appNetworkResourceGroup string
+	var readTimeoutInSeconds int32
 	var cidrRanges []interface{}
 	if input.ServiceRuntimeSubnetID != nil {
 		serviceRuntimeSubnetID = *input.ServiceRuntimeSubnetID
@@ -1053,6 +1076,12 @@ func flattenSpringCloudNetwork(input *appplatform.NetworkProfile) []interface{} 
 		appNetworkResourceGroup = *input.AppNetworkResourceGroup
 	}
 
+	if ingressConfig := input.IngressConfig; ingressConfig != nil {
+		if ingressConfig.ReadTimeoutInSeconds != nil {
+			readTimeoutInSeconds = *ingressConfig.ReadTimeoutInSeconds
+		}
+	}
+
 	if serviceRuntimeSubnetID == "" && appSubnetID == "" && serviceRuntimeNetworkResourceGroup == "" && appNetworkResourceGroup == "" && len(cidrRanges) == 0 {
 		return []interface{}{}
 	}
@@ -1063,6 +1092,7 @@ func flattenSpringCloudNetwork(input *appplatform.NetworkProfile) []interface{} 
 			"service_runtime_subnet_id":              serviceRuntimeSubnetID,
 			"cidr_ranges":                            cidrRanges,
 			"app_network_resource_group":             appNetworkResourceGroup,
+			"read_timeout_seconds":                   readTimeoutInSeconds,
 			"service_runtime_network_resource_group": serviceRuntimeNetworkResourceGroup,
 		},
 	}

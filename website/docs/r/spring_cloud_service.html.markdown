@@ -64,6 +64,8 @@ The following arguments are supported:
 
 -> **Note:** At this time Azure Spring Cloud Service is only supported in a subset of regions (including `East US`, `South East Asia`, `West Europe` and `West US 2`.
 
+* `log_stream_public_endpoint_enabled` - (Optional) Indicates whether the log stream in vnet injection instance could be accessed from internet.
+
 * `build_agent_pool_size` - (Optional) Specifies the size for this Spring Cloud Service's default build agent pool. Possible values are `S1`, `S2`, `S3`, `S4` and `S5`.
 
 * `sku_name` - (Optional) Specifies the SKU Name for this Spring Cloud Service. Possible values are `B0`, `S0` and `E0`. Defaults to `S0`.
@@ -91,6 +93,8 @@ The `network` block supports the following:
 * `cidr_ranges` - (Required) A list of (at least 3) CIDR ranges (at least /16) which are used to host the Spring Cloud infrastructure, which must not overlap with any existing CIDR ranges in the Subnet. Changing this forces a new resource to be created.
 
 * `app_network_resource_group` - (Optional) Specifies the Name of the resource group containing network resources of Azure Spring Cloud Apps. Changing this forces a new resource to be created.
+
+* `read_timeout_seconds` - (Optional) Ingress read time out in seconds. Changing this forces a new resource to be created.
 
 * `service_runtime_network_resource_group` - (Optional) Specifies the Name of the resource group containing network resources of Azure Spring Cloud Service Runtime. Changing this forces a new resource to be created.
 
