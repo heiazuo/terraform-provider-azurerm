@@ -70,7 +70,7 @@ The following arguments are supported:
 
 * `route` - (Optional) One or more `route` blocks as defined below.
 
-* `open_api` - (Optional) One or more `route` blocks as defined below.
+* `open_api` - (Optional) One or more `open_api` blocks as defined below.
 
 * `spring_cloud_app_id` - (Optional) The ID of the Spring Cloud App.
 
