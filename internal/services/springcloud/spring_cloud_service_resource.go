@@ -124,8 +124,9 @@ func resourceSpringCloudService() *pluginsdk.Resource {
 						},
 
 						"read_timeout_seconds": {
-							Type:     pluginsdk.TypeInt,
-							Optional: true,
+							Type:         pluginsdk.TypeInt,
+							Optional:     true,
+							ValidateFunc: validation.IntAtLeast(0),
 						},
 
 						"service_runtime_network_resource_group": {
